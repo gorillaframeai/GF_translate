@@ -23,7 +23,7 @@ class GFDeepTranslateNode:
             "required": {
                 "text": ("STRING", {"multiline": True, "default": "Enter text"}),
                 "src_lang": (language_list, {"default": "en"}),  # Source language
-                "dest_lang": (language_list, {"default": "en"}),  # Target language
+                "dest_lang": (language_list + ["none"], {"default": "en"}),  # Target language or "none"
             }
         }
 
@@ -38,9 +38,12 @@ class GFDeepTranslateNode:
 
         :param text: Text to translate.
         :param src_lang: Source language (e.g., 'ru' for Russian).
-        :param dest_lang: Target language (e.g., 'en' for English).
+        :param dest_lang: Target language (e.g., 'en' for English) or "none".
         :return: Translated text.
         """
+        if dest_lang == "none":
+            return (text,)  # Return the original text if "none" is selected
+
         try:
             translation = GoogleTranslator(source=src_lang, target=dest_lang).translate(text)
             return (translation,)
@@ -59,7 +62,7 @@ class GFJsonTranslate:
             "required": {
                 "input_path": ("STRING", {"default": ""}),  # Path to the input JSON file
                 "source_lang": (language_list, {"default": "en"}),  # Source language
-                "target_lang": (language_list, {"default": "en"}),  # Target language
+                "target_lang": (language_list + ["none"], {"default": "en"}),  # Target language or "none"
                 "fancy_mode": ("BOOLEAN", {"default": True}),  # Button to control structured output
             }
         }
@@ -70,6 +73,9 @@ class GFJsonTranslate:
     CATEGORY = "Custom"
 
     def translate_text(self, text, source_lang, target_lang):
+        if target_lang == "none":
+            return text  # Return the original text if "none" is selected
+
         try:
             translator = GoogleTranslator(source=source_lang, target=target_lang)
             translated_text = translator.translate(text)

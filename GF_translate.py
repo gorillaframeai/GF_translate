@@ -18,12 +18,11 @@ class GFDeepTranslateNode:
         language_list = list(GoogleTranslator().get_supported_languages(as_dict=True).keys())
         if 'en' not in language_list:
             language_list.append('en')  # Manually add 'en' if it is not present
-        language_list.insert(0, "auto")  # Add the auto-detection option
 
         return {
             "required": {
                 "text": ("STRING", {"multiline": True, "default": "Enter text"}),
-                "src_lang": (language_list, {"default": "auto"}),  # Source language (auto-detection)
+                "src_lang": (language_list, {"default": "en"}),  # Source language
                 "dest_lang": (language_list, {"default": "en"}),  # Target language
             }
         }
@@ -43,12 +42,7 @@ class GFDeepTranslateNode:
         :return: Translated text.
         """
         try:
-            # If "auto" is selected, use automatic language detection
-            if src_lang == "auto":
-                translation = GoogleTranslator(source='auto', target=dest_lang).translate(text)
-            else:
-                translation = GoogleTranslator(source=src_lang, target=dest_lang).translate(text)
-
+            translation = GoogleTranslator(source=src_lang, target=dest_lang).translate(text)
             return (translation,)
         except Exception as e:
             return (f"Translation error: {e}",)
@@ -60,12 +54,11 @@ class GFJsonTranslate:
         language_list = list(GoogleTranslator().get_supported_languages(as_dict=True).keys())
         if 'en' not in language_list:
             language_list.append('en')  # Manually add 'en' if it is not present
-        language_list.insert(0, "auto")  # Add the auto-detection option
 
         return {
             "required": {
                 "input_path": ("STRING", {"default": ""}),  # Path to the input JSON file
-                "source_lang": (language_list, {"default": "auto"}),  # Source language (auto-detection)
+                "source_lang": (language_list, {"default": "en"}),  # Source language
                 "target_lang": (language_list, {"default": "en"}),  # Target language
                 "fancy_mode": ("BOOLEAN", {"default": True}),  # Button to control structured output
             }
@@ -76,17 +69,9 @@ class GFJsonTranslate:
     FUNCTION = "translate_json_file"
     CATEGORY = "Custom"
 
-    def is_chinese(self, text):
-        chinese_pattern = re.compile(r'[\u4e00-\u9fff]+')
-        return bool(chinese_pattern.search(text))
-
     def translate_text(self, text, source_lang, target_lang):
         try:
-            # If "auto" is selected, use automatic language detection
-            if source_lang == "auto":
-                translator = GoogleTranslator(source='auto', target=target_lang)
-            else:
-                translator = GoogleTranslator(source=source_lang, target=target_lang)
+            translator = GoogleTranslator(source=source_lang, target=target_lang)
             translated_text = translator.translate(text)
             return translated_text
         except Exception:
@@ -108,13 +93,12 @@ class GFJsonTranslate:
         def recursive_collect(data, path):
             if isinstance(data, dict):
                 for key, value in data.items():
+                    if key == "title" and isinstance(value, str):
+                        paths_to_translate.append((path + [key], value))
                     recursive_collect(value, path + [key])
             elif isinstance(data, list):
                 for index, item in enumerate(data):
                     recursive_collect(item, path + [index])
-            elif isinstance(data, str):
-                if self.is_chinese(data):
-                    paths_to_translate.append((path, data))
 
         recursive_collect(json_data, [])
 
@@ -134,9 +118,18 @@ class GFJsonTranslate:
         return json_data, len(translated_texts)
 
     def translate_json_file(self, input_path, source_lang, target_lang, fancy_mode):
-        # Read the input JSON file
-        with open(input_path, 'r', encoding='utf-8') as file:
-            json_data = json.load(file)
+        # Check if the input file exists
+        if not os.path.exists(input_path):
+            print(f"File not found: {input_path}")
+            return (None,)
+
+        # Attempt to read the input JSON file with UTF-8 encoding
+        try:
+            with open(input_path, 'r', encoding='utf-8') as file:
+                json_data = json.load(file)
+        except UnicodeDecodeError:
+            print(f"Failed to decode file with UTF-8 encoding: {input_path}")
+            return (None,)
 
         # Process JSON data
         processed_json_data, translated_count = self.process_json(json_data, source_lang, target_lang)

@@ -4,26 +4,24 @@ import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from deep_translator import GoogleTranslator
 
+
 class GFDeepTranslateNode:
-    """
-    Node for translating text using Google Translate.
-    Supports language selection from a list and automatic language detection.
-    """
     def __init__(self):
         pass
 
     @classmethod
     def INPUT_TYPES(cls):
-        # Create a list of languages for selection (only language codes)
+        # Создаем список языков для выбора (только коды языков)
         language_list = list(GoogleTranslator().get_supported_languages(as_dict=True).keys())
         if 'en' not in language_list:
-            language_list.append('en')  # Manually add 'en' if it is not present
+            language_list.append('en')  # Вручную добавляем 'en', если его нет
+        language_list.insert(0, "auto")  # Добавляем опцию автоопределения
 
         return {
             "required": {
-                "text": ("STRING", {"multiline": True, "default": "Enter text"}),
-                "src_lang": (language_list, {"default": "en"}),  # Source language
-                "dest_lang": (language_list + ["none"], {"default": "en"}),  # Target language or "none"
+                "text": ("STRING", {"multiline": True, "default": "Введите текст"}),
+                "src_lang": (language_list, {"default": "auto"}),  # Автоопределение языка
+                "dest_lang": (language_list, {"default": "en"}),  # Целевой язык
             }
         }
 
@@ -34,21 +32,23 @@ class GFDeepTranslateNode:
 
     def translate_text(self, text, src_lang, dest_lang):
         """
-        Translates text from one language to another.
-
-        :param text: Text to translate.
-        :param src_lang: Source language (e.g., 'ru' for Russian).
-        :param dest_lang: Target language (e.g., 'en' for English) or "none".
-        :return: Translated text.
+        Переводит текст с одного языка на другой.
+        
+        :param text: Текст для перевода.
+        :param src_lang: Исходный язык (например, 'ru' для русского).
+        :param dest_lang: Целевой язык (например, 'en' для английского).
+        :return: Переведенный текст.
         """
-        if dest_lang == "none":
-            return (text,)  # Return the original text if "none" is selected
-
         try:
-            translation = GoogleTranslator(source=src_lang, target=dest_lang).translate(text)
+            # Если выбран "auto", используем автоматическое определение языка
+            if src_lang == "auto":
+                translation = GoogleTranslator(source='auto', target=dest_lang).translate(text)
+            else:
+                translation = GoogleTranslator(source=src_lang, target=dest_lang).translate(text)
+
             return (translation,)
         except Exception as e:
-            return (f"Translation error: {e}",)
+            return (f"Ошибка при переводе: {e}",)
 
 class GFJsonTranslate:
     @classmethod
@@ -58,10 +58,13 @@ class GFJsonTranslate:
         if 'en' not in language_list:
             language_list.append('en')  # Manually add 'en' if it is not present
 
+        # Add 'auto' for automatic language detection
+        language_list_with_auto = ['auto'] + language_list
+
         return {
             "required": {
                 "input_path": ("STRING", {"default": ""}),  # Path to the input JSON file
-                "source_lang": (language_list, {"default": "en"}),  # Source language
+                "source_lang": (language_list_with_auto, {"default": "auto"}),  # Source language with 'auto' option
                 "target_lang": (language_list + ["none"], {"default": "en"}),  # Target language or "none"
                 "fancy_mode": ("BOOLEAN", {"default": True}),  # Button to control structured output
             }
@@ -83,7 +86,7 @@ class GFJsonTranslate:
         except Exception:
             return text  # Return the original text if translation fails
 
-    def translate_texts(self, texts, source_lang, target_lang, max_workers=30):
+    def translate_texts(self, texts, source_lang, target_lang, max_workers=25):
         translated_texts = []
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_to_text = {executor.submit(self.translate_text, text, source_lang, target_lang): text for text in texts}
@@ -92,7 +95,7 @@ class GFJsonTranslate:
                 translated_texts.append(translated_text)
         return translated_texts
 
-    def process_json(self, json_data, source_lang, target_lang, max_workers=30):
+    def process_json(self, json_data, source_lang, target_lang, max_workers=25):
         paths_to_translate = []
         translated_texts = []  # Initialize translated_texts here
 
@@ -126,7 +129,6 @@ class GFJsonTranslate:
     def translate_json_file(self, input_path, source_lang, target_lang, fancy_mode):
         # Check if the input file exists
         if not os.path.exists(input_path):
-            print(f"File not found: {input_path}")
             return (None,)
 
         # Attempt to read the input JSON file with UTF-8 encoding
@@ -134,7 +136,6 @@ class GFJsonTranslate:
             with open(input_path, 'r', encoding='utf-8') as file:
                 json_data = json.load(file)
         except UnicodeDecodeError:
-            print(f"Failed to decode file with UTF-8 encoding: {input_path}")
             return (None,)
 
         # Process JSON data
@@ -153,6 +154,4 @@ class GFJsonTranslate:
             else:
                 json.dump(processed_json_data, file, ensure_ascii=False)
 
-        print(f"Translated lines: {translated_count}")
-        print(f"Translated JSON saved to {output_file_path}")
         return (output_file_path,)

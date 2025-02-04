@@ -103,6 +103,7 @@ class GFJsonTranslate:
 
     def process_json(self, json_data, source_lang, target_lang, max_workers=30):
         paths_to_translate = []
+        translated_texts = []  # Initialize translated_texts here
 
         def recursive_collect(data, path):
             if isinstance(data, dict):

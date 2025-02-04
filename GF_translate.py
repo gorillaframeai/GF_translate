@@ -148,7 +148,7 @@ class GFJsonTranslate:
             os.makedirs(output_dir)
 
         # Записываем переведенные JSON данные в выходной файл
-        output_file_path = os.path.join(output_dir, f"{os.path.basename(input_path)}-{target_lang}.json")
+        output_file_path = os.path.join(output_dir, f"{os.path.splitext(os.path.basename(input_path))[0]}-{target_lang}.json")
         with open(output_file_path, 'w', encoding='utf-8') as file:
             if pretty_print:
                 json.dump(processed_json_data, file, ensure_ascii=False, indent=4)

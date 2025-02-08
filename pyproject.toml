@@ -1,0 +1,15 @@
+[project]
+name = "gf_translate"
+description = "These custom nodes for ComfyUI provide advanced text translation capabilities using Google Translate. They are designed for seamless integration into the ComfyUI environment, offering users powerful tools for text and JSON file translation tasks."
+version = "1.0.0"
+license = {file = "LICENSE"}
+dependencies = ["deep-translator"]
+
+[project.urls]
+Repository = "https://github.com/gorillaframeai/GF_translate"
+#  Used by Comfy Registry https://comfyregistry.org
+
+[tool.comfy]
+PublisherId = ""
+DisplayName = "GF_translate"
+Icon = ""
